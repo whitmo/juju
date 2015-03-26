@@ -48,7 +48,7 @@ type DeployCommand struct {
 	Storage map[string]storage.Constraints
 
 	// VirtualEndpoints
-	VirtualEndpoints string
+	VirtualEndpoints     string
 	VirtualEndpointsFile string
 }
 
@@ -168,7 +168,7 @@ func (c *DeployCommand) Init(args []string) error {
 		if err != nil {
 			return err
 		}
-    isVirtual := c.CharmRef.Schema == "virtual"
+		isVirtual := c.CharmRef.Schema == "virtual"
 		if isVirtual {
 			fmt.Printf("c.VirtualEndpoint = %q\n", c.VirtualEndpoints)
 			if c.VirtualEndpoints == "" && c.VirtualEndpointsFile == "" {
@@ -179,7 +179,7 @@ func (c *DeployCommand) Init(args []string) error {
 			}
 		}
 
-    if c.VirtualEndpoints != "" && !isVirtual {
+		if c.VirtualEndpoints != "" && !isVirtual {
 			return fmt.Errorf("using --endpoints requires the virtual charm type")
 		}
 		if c.VirtualEndpointsFile == "" && !isVirtual {
@@ -191,7 +191,7 @@ func (c *DeployCommand) Init(args []string) error {
 				return fmt.Errorf("invalid charm name %q", args[0])
 			}
 		}
-		c.CharmName = args[0]s
+		c.CharmName = args[0]
 	case 0:
 		return errors.New("no charm specified")
 	default:
@@ -217,14 +217,12 @@ func (c *DeployCommand) Run(ctx *cmd.Context) error {
 	}
 
 	if c.CharmRef.Schema == "virtual" {
-
 		if c.VirtualEndpoints != "" {
-			virtualEndpoint parseVirtualEndpoints(c.virtualEndpoints)
+			virtualEndpoint := parseVirtualEndpoints(c.virtualEndpoints)
 			err := addVirtualServiceViaAPI(client, c.CharmRef, c.VirtualEndpoints)
 		}
 		if c.VirtualEndpointsFile != "" {
-
-			err :=
+			err := 1
 		}
 		return block.ProcessBlockedError(err, block.BlockChange)
 	}
@@ -413,7 +411,7 @@ func getEndpoints(endpointsArg string, endpointsFile string) ([]string, error) {
 			return nil, err
 		}
 		virtEndpoints := []params.VirtualEndpoint{endpoint}
-	} else if endpointsFile != "" {}
+	} else if endpointsFile != "" {
 		endpointStrings, err := readEndpointsFile(endpointFile)
 		for _, data := range endpointStrings {
 			endpoint, err := parseVirtualEndpoint()
@@ -423,10 +421,42 @@ func getEndpoints(endpointsArg string, endpointsFile string) ([]string, error) {
 		}
 	}
 
-	return []params.VirtualEndpoint{endpoint}
+	return []params.VirtualEndpoint{endpoint}, nil
 }
+
+// parseVirtualEndpointJSONFile
+// Parse a json file for virtual endpoint data
+// ex:
+// --endpoints-file=wat.json
+// {"endpoints":["db:wat":{},
+//	         "db:hey":{}]}
+func parseVirtualEndpointJSONFile(filepath string) ([]params.VirtualEndpoint, error) {
+
+}
+
+// parseVirtualEndpointYAMLFile
+// Parse a yaml file for virtual endpoint data
+// ex:
+// --endpoints-file=wat.yaml
+// endpoints:
+//  - 'db:wat':{}
+//  - 'db:hey':{}
+func parseVirtualEndpointYAMLFile(filepath string) ([]params.VirtualEndpoint, error) {
+
+}
+
+// parseVirtualEndpoints
+// Parse json embedded command line for virtual endpoint data
+// ex:
+// --endpoints=db:wat='{}',db:yeah='{}'
+//
+func parseVirtualEndpoints(input string) ([]params.VirtualEndpoint, error) {
+
+}
+
 // parseVirtualEndpoint takes a single endpoint string and parses out the relation, interface and JSON data.
 // Expected format:  relation:interface=JSON
+// example: db:wat='{}'
 func parseVirtualEndpoint(data string) (VirtualEndpoint, error) {
 	var virtEndpoint params.VirtualEndpoint
 
