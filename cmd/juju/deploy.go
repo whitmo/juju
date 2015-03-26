@@ -49,6 +49,7 @@ type DeployCommand struct {
 
 	// VirtualEndpoints
 	VirtualEndpoints string
+	VirtualEndpointsFile string
 }
 
 const deployDoc = `
@@ -149,7 +150,8 @@ func (c *DeployCommand) SetFlags(f *gnuflag.FlagSet) {
 		// version supports storage, and error if it doesn't.
 		f.Var(storageFlag{&c.Storage}, "storage", "charm storage constraints")
 	}
-	f.StringVar(&c.VirtualEndpoints, "endpoint-file", "", "file that defines the interface(s) for the virtual service")
+	f.StringVar(&c.VirtualEndpointsFile, "endpoints-file", "", "file that defines the interface(s) for the virtual service")
+	f.StringVar(&c.VirtualEndpoints, "endpoints", "", "the endpoint definition(s) for virtual service")
 }
 
 func (c *DeployCommand) Init(args []string) error {
@@ -166,26 +168,30 @@ func (c *DeployCommand) Init(args []string) error {
 		if err != nil {
 			return err
 		}
-
-		if c.CharmRef.Schema == "virtual" {
-			if c.VirtualEndpoints == "" {
-				return fmt.Errorf("virtual charm type requires --endpoint-file")
+    isVirtual := c.CharmRef.Schema == "virtual"
+		if isVirtual {
+			fmt.Printf("c.VirtualEndpoint = %q\n", c.VirtualEndpoints)
+			if c.VirtualEndpoints == "" && c.VirtualEndpointsFile == "" {
+				return fmt.Errorf("virtual charm type requires either --endpoints or --endpoints-file")
 			}
 			if c.NumUnits > 1 {
 				return fmt.Errorf("virtual charm type does not support multiple principal units")
 			}
 		}
 
-		if c.CharmRef.Schema != "virtual" && c.VirtualEndpoints != "" {
-			return fmt.Errorf("using --endpoint-file requires the virtual charm type")
+    if c.VirtualEndpoints != "" && !isVirtual {
+			return fmt.Errorf("using --endpoints requires the virtual charm type")
+		}
+		if c.VirtualEndpointsFile == "" && !isVirtual {
+			return fmt.Errorf("using --endpoints-file requires the virtual charm type")
 		}
 
-		if c.CharmRef.Schema != "virtual" {
+		if !isVirtual {
 			if _, err := charm.InferURL(args[0], "fake"); err != nil {
 				return fmt.Errorf("invalid charm name %q", args[0])
 			}
 		}
-		c.CharmName = args[0]
+		c.CharmName = args[0]s
 	case 0:
 		return errors.New("no charm specified")
 	default:
@@ -211,7 +217,15 @@ func (c *DeployCommand) Run(ctx *cmd.Context) error {
 	}
 
 	if c.CharmRef.Schema == "virtual" {
-		err := addVirtualServiceViaAPI(client, c.CharmRef, c.VirtualEndpoints)
+
+		if c.VirtualEndpoints != "" {
+			virtualEndpoint parseVirtualEndpoints(c.virtualEndpoints)
+			err := addVirtualServiceViaAPI(client, c.CharmRef, c.VirtualEndpoints)
+		}
+		if c.VirtualEndpointsFile != "" {
+
+			err :=
+		}
 		return block.ProcessBlockedError(err, block.BlockChange)
 	}
 
@@ -381,41 +395,65 @@ func networkNamesToTags(networks []string) ([]string, error) {
 
 }
 
-func parseVirtualEndpoints(endpointArg string) ([]params.VirtualEndpoint, error) {
-	fdata, err := ioutil.ReadFile(endpointArg)
+// readEndpointsFile opens a file and reads the strings that define endpoints.
+func readEndpointsFile(endpointsFile string) ([]string, error) {
+	endpointData, err := ioutil.ReadFile(endpointsFile)
 	if err != nil {
 		return nil, err
 	}
+	return strings.Split(endpointData, "\n"), nil
+}
 
-	data := string(fdata)
+func getEndpoints(endpointsArg string, endpointsFile string) ([]string, error) {
 	var virtEndpoints []params.VirtualEndpoint
-	var endpoint params.VirtualEndpoint
+
+	if endpointsArg != "" {
+		endpoint, err := parseVirtualEndpoint(endpointArgs)
+		if err != nil {
+			return nil, err
+		}
+		virtEndpoints := []params.VirtualEndpoint{endpoint}
+	} else if endpointsFile != "" {}
+		endpointStrings, err := readEndpointsFile(endpointFile)
+		for _, data := range endpointStrings {
+			endpoint, err := parseVirtualEndpoint()
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return []params.VirtualEndpoint{endpoint}
+}
+// parseVirtualEndpoint takes a single endpoint string and parses out the relation, interface and JSON data.
+// Expected format:  relation:interface=JSON
+func parseVirtualEndpoint(data string) (VirtualEndpoint, error) {
+	var virtEndpoint params.VirtualEndpoint
 
 	relation_index := strings.Index(data, ":")
 	if relation_index == -1 {
-		return virtEndpoints, errors.Errorf("no relation index found in %q", data)
+		return virtEndpoint, errors.Errorf("no relation index found in %q", data)
 	}
 
 	endpoint.Relation = strings.TrimSpace(data[:relation_index])
 	if endpoint.Relation == "" {
-		return virtEndpoints, errors.Errorf("no relation name found in %q", data)
+		return virtEndpoint, errors.Errorf("no relation name found in %q", data)
 	}
 
 	interface_index := strings.Index(data, "=")
 	if interface_index == -1 {
-		return virtEndpoints, errors.Errorf("no interface name found in %q", data)
+		return virtEndpoint, errors.Errorf("no interface name found in %q", data)
 	}
 
 	endpoint.Interface = strings.TrimSpace(data[relation_index+1 : interface_index])
 	if endpoint.Interface == "" {
-		return virtEndpoints, errors.Errorf("no interface name found in %q", data)
+		return virtEndpoint, errors.Errorf("no interface name found in %q", endpoint)
 	}
 
 	json_data := strings.TrimSpace(data[interface_index+1:])
 	if err := json.Unmarshal([]byte(json_data), &endpoint.Payload); err != nil {
-		return virtEndpoints, errors.Errorf("invalid JSON: %+v", json_data)
+		return virtEndpoint, errors.Errorf("invalid JSON: %+v", json_data)
 	}
-	vp := []params.VirtualEndpoint{endpoint}
-	logger.Debugf("%#v", vp)
-	return vp, nil
+
+	return virtualEndpoint, nil
 }
