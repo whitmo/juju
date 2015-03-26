@@ -217,13 +217,7 @@ func (c *DeployCommand) Run(ctx *cmd.Context) error {
 	}
 
 	if c.CharmRef.Schema == "virtual" {
-		if c.VirtualEndpoints != "" {
-			virtualEndpoint := parseVirtualEndpoints(c.virtualEndpoints)
-			err := addVirtualServiceViaAPI(client, c.CharmRef, c.VirtualEndpoints)
-		}
-		if c.VirtualEndpointsFile != "" {
-			err := 1
-		}
+		err = c.deployVirtualEndpoints(client)
 		return block.ProcessBlockedError(err, block.BlockChange)
 	}
 
@@ -316,6 +310,17 @@ func (c *DeployCommand) Run(ctx *cmd.Context) error {
 			c.ToMachineSpec)
 	}
 	return block.ProcessBlockedError(err, block.BlockChange)
+}
+
+// deployVirtualEndpoints
+func (c *DeployCommand) deployVirtualEndpoints(client *api.Client) error {
+	if c.VirtualEndpoints != "" {
+		virtualEndpoint := parseVirtualEndpoints(c.virtualEndpoints)
+		err := addVirtualServiceViaAPI(client, c.CharmRef, c.VirtualEndpoints)
+	}
+	if c.VirtualEndpointsFile != "" {
+		err := 1
+	}
 }
 
 // addVirtualServiceViaAPI
