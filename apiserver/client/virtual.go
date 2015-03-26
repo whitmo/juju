@@ -4,9 +4,12 @@
 package client
 
 import (
+	"strings"
+
 	"gopkg.in/juju/charm.v4"
 
 	"github.com/juju/juju/apiserver/params"
+	"github.com/juju/juju/state"
 )
 
 // VirtualServiceDeploy
@@ -36,8 +39,11 @@ func (c *Client) VirtualServiceDeploy(args params.VirtualServiceDeploy) error {
 		nil,
 		nil,
 	)
-
 	if err != nil {
+		return err
+	}
+
+	if err := setVirtualServiceSettings(c.api.state, args.ServiceName, args.Endpoints); err != nil {
 		return err
 	}
 	return nil
@@ -49,12 +55,22 @@ func makeVirtualRelations(endpoints []params.VirtualEndpoint) map[string]charm.R
 	for _, endpoint := range endpoints {
 		relation := charm.Relation{
 			Name:      endpoint.Relation,
-			Role:      "tight",
+			Role:      "provider",
 			Interface: endpoint.Interface,
+			Scope:     charm.ScopeVirtual,
 		}
 		relations[endpoint.Relation] = relation
 	}
 	return relations
+}
+
+func setVirtualServiceSettings(st *state.State, serviceName string, endpoints []params.VirtualEndpoint) error {
+	for _, ep := range endpoints {
+		key := strings.Join([]string{"virtual", "provider", serviceName, ep.Relation, ep.Interface}, "#")
+		logger.Debugf("%q", key)
+		state.WriteVirtualSettings(st, key, ep.Payload)
+	}
+	return nil
 }
 
 type virtualCharm struct {

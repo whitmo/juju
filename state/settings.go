@@ -343,6 +343,14 @@ func listSettings(st *State, keyPrefix string) (map[string]map[string]interface{
 	return result, nil
 }
 
+// WriteVirtualSettings ...
+func WriteVirtualSettings(st *State, key string, values map[string]interface{}) {
+	var ops []txn.Op
+	op := createSettingsOp(st, key, values)
+	ops = append(ops, op)
+	st.runTransaction(ops)
+}
+
 // replaceSettingsOp returns a txn.Op that deletes the document's contents and
 // replaces it with the supplied values, and a function that should be called on
 // txn failure to determine whether this operation failed (due to a concurrent

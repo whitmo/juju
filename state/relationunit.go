@@ -405,18 +405,36 @@ func (ru *RelationUnit) Settings() (*Settings, error) {
 // of the lifetime of the unit.
 func (ru *RelationUnit) ReadSettings(uname string) (m map[string]interface{}, err error) {
 	defer errors.DeferredAnnotatef(&err, "cannot read settings for unit %q in relation %q", uname, ru.relation)
-	if !names.IsValidUnit(uname) {
-		return nil, fmt.Errorf("%q is not a valid unit name", uname)
+	var key string
+
+	endpoint := hasVirtualEndpoints(ru.Relation().Endpoints())
+	if endpoint != nil {
+		key = strings.Join([]string{"virtual", "provider", endpoint.ServiceName, endpoint.Name, endpoint.Interface}, "#")
+		logger.Debugf("virt: %q", key)
+	} else {
+		if !names.IsValidUnit(uname) {
+			return nil, fmt.Errorf("%q is not a valid unit name", uname)
+		}
+		key, err = ru.key(uname)
+		if err != nil {
+			return nil, err
+		}
 	}
-	key, err := ru.key(uname)
-	if err != nil {
-		return nil, err
-	}
+	logger.Debugf("%q", key)
 	node, err := readSettings(ru.st, key)
 	if err != nil {
 		return nil, err
 	}
 	return node.Map(), nil
+}
+
+func hasVirtualEndpoints(endpoints []Endpoint) *Endpoint {
+	for _, ep := range endpoints {
+		if ep.Scope == charm.ScopeVirtual {
+			return &ep
+		}
+	}
+	return nil
 }
 
 // key returns a string, based on the relation and the supplied unit name,
