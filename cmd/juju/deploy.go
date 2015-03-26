@@ -319,7 +319,7 @@ func (c *DeployCommand) deployVirtualEndpoints(client *api.Client) error {
 	if c.VirtualEndpoints != "" {
 		commandlineEndpoints, err := parseVirtualEndpoints(c.VirtualEndpoints)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		append(virtualEndpoints, commandlineEndpoints)
 	}
@@ -327,7 +327,7 @@ func (c *DeployCommand) deployVirtualEndpoints(client *api.Client) error {
 	if c.VirtualEndpointsFile != "" {
 		fileEndpoints, err := parseVirtualEndpointsFile(c.VirtualEndpointsFile)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		append(virtualEndpoints, fileEndpoints)
 	}
@@ -425,6 +425,7 @@ func parseVirtualEndpointsFile(filepath string) ([]params.VirtualEndpoint, error
 		return nil, errors.New("unsupported endpoint file type")
 	}
 }
+
 // parseVirtualEndpointJSONFile read a json file, emit virtual endpoints.
 // example:
 // juju deploy virtual:name service-name --endpoints-file=endpoint.json
